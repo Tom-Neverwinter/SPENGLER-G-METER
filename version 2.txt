@@ -1,0 +1,432 @@
+/*
+Arduino 2x16 LCD - SPENGLER G-METER
+September 24, 2021  Version 2 with animated scanner top line graphics added
+by Bruce Wright
+Free use for fans.  Change whatever you want.  Share for free only.
+*/
+
+
+//at the top of the program, I'm setting up some variables.  A list of messages to print
+//and some values I'll need deeper in the program
+
+//This is a string array.  It's a list of all the bottom line text that each mode prints.;
+//There are 4 sets of 10 messages.  message 0-9 for the bottom button, 10-19 right, 20-29 top, 30-39 left;
+
+char *myString1[] = {"  212-555-2368  ", "ghostbusters.com", " no job too big ", " no FEE too big ",
+                     "?STrAnGe NoIsEs?", "??CoLd SpOtS?!??", "?FeAr or dREaD?!", " Ready2BelieveU ",
+                     "WHO U GONNA CALL", " 24 HOURS CALL: ",
+                     "EMF:     nominal", "EVP LvL:   quiet", "EVP LvL:   quiet", "EVP LvL:    BUMP",
+                     "ECTO COUNT:  low", "ECTO COUNT:  low", "ECTO COUNT:  med", "ECTO COUNT:  med",
+                     "ECTO COUNT: HIGH", "ECTO COUNT:  med",
+                     "CYCLOTRON:    OK", "NUTRONA:    FULL", "IONIZATION:  85%", "SLIME CHARGE:3++",
+                     "SLIME Lvl:RISING", "CONTAINMENT:  OK", "TWINKIE:     BIG", "MESONS:  NOMINAL",
+                     "SLO-BLO:     OFF", "N-FILTER: VENTED",
+                     "Apparition     2", "----DETECTING---", "Full Torso     5", "----DETECTING---",
+                     "Free-Floating  6", "----DETECTING---", "Spectral mist  1", "UNKNOWN      UNK",
+                     "NonCorporeal   3", "----DETECTING---"
+                    };
+
+char *myString2[] = {"----SCANNING----", "--->SCANNING<---", "-->>SCANNING<<--", "->>>SCANNING<<<-",
+                     ">>>>SCANNING<<<<", ">>>-SCANNING-<<<", ">>--SCANNING--<<", ">---SCANNING---<"
+                    };
+
+//each mode allows you to change the speed setting.  That's the speed it prints at. Here we start at speed 2
+//smaller numbers are faster.  I guess I should have called it myDelay instead!!!
+int mySpeed =2;
+
+
+
+// first cycling mode will be printing pke numbers.  So I turn that mode on with this variable
+int numbers =1;
+
+//initialize top animated text to be on
+int scanning = 1;
+
+
+//in order to drive the LCD shield, you'll need to include the LiquidCrystal library
+// THIS SHOULD ALREADY BE PART OF YOUR ARDUINO LIBRARIES 
+// if not, go to Tools>ManageLibraries and search and install LiquidCrystal
+
+#include <LiquidCrystal.h>
+//LCD pin to Arduino
+const int pin_RS = 8; 
+const int pin_EN = 9; 
+const int pin_d4 = 4; 
+const int pin_d5 = 5; 
+const int pin_d6 = 6; 
+const int pin_d7 = 7; 
+const int pin_BL = 10; 
+LiquidCrystal lcd( pin_RS,  pin_EN,  pin_d4,  pin_d5,  pin_d6,  pin_d7);
+
+
+
+//the void setup here runs ONCE on startup and then the rest of the program loops forever.
+//first things I'm doing in this are just animating the boot up messages
+//all these messages and the "boot up" process is just for fun.  the system is all booted up already!
+
+void setup() {
+ lcd.begin(16, 2);
+ lcd.setCursor(0,0);
+ lcd.print("              ");
+  delay(1900);
+ 
+ lcd.setCursor(0,0);
+ lcd.print("  speng_v3.34b");
+  delay(1900);
+ 
+ lcd.setCursor(0,1);
+ lcd.print("booting     wait");
+  delay(500);
+
+ lcd.setCursor(0,1);
+ lcd.print("booting>");
+ delay(500);
+ lcd.setCursor(0,1);
+ lcd.print("booting->");
+ delay(500);
+ lcd.setCursor(0,1);
+ lcd.print("booting-->");
+ delay(500);
+ lcd.setCursor(0,1);
+ lcd.print("booting--->");
+ delay(500); 
+ lcd.setCursor(0,1);
+ lcd.print("booting---->");
+ delay(500); 
+ lcd.setCursor(0,1);
+ lcd.print("booting----->");
+ delay(500);
+ lcd.setCursor(0,1);
+ lcd.print("booting------>");
+ delay(500);
+ lcd.setCursor(0,1);
+ lcd.print("booting------->");
+ delay(500);
+ lcd.setCursor(0,1);
+ lcd.print("booting-------->");
+ delay(500);
+ lcd.setCursor(0,1);
+ lcd.print("   starting up  ");
+ delay(500);
+ lcd.setCursor(0,1);
+ lcd.print("                ");
+ lcd.setCursor(0,0);
+ lcd.print("                ");
+  
+  // Turn off the backlight:
+  lcd.noDisplay();
+  digitalWrite(pin_BL, LOW);
+  pinMode(pin_BL, OUTPUT);
+  delay(1200);
+  
+  // Turn on the backlight:
+  lcd.display();
+  digitalWrite(pin_BL, LOW);
+  pinMode(pin_BL, INPUT);
+  delay(900);
+  
+ lcd.setCursor(0,0);
+ lcd.print("SPENGLER G-METER");
+ delay(1900);
+
+ lcd.setCursor(0,1);
+ lcd.print("c2016 jHoltzmann");
+ delay(3900);
+
+
+ lcd.setCursor(0,1);
+ lcd.print("                ");
+ lcd.setCursor(0,0);
+ lcd.print("                ");
+ // Turn off the display:
+ lcd.noDisplay();
+ delay(600);
+ // Turn on the display:
+ lcd.display();
+  
+  
+ lcd.setCursor(0,1);
+ lcd.print("PKE LEVEL:");
+
+
+}
+
+//okay, that's the whole "startup sequence"  When it's done, it's printing PKE numbers. 
+//that way, when you turn it on, it's aready "doing something".
+
+//here I'm initializing two counters I'll need later for the bottom line messages. 
+// b is which group of messages, i is which message in that group
+// for instance b=0 i=9 finds the value "WHO U GONNA CALL" from the string array at the top 
+// whereas b=20 i=0 finds "CYCLOTRON:    OK"
+//in computer programs, when we count, we start with zero.  You probably already knew that.
+
+int i = 0;
+int b = 0;
+int j=0;
+
+//This is the always running part of the program. Once the startup sequence is done this next part loops forever
+
+void loop() {
+
+
+
+//This big part is all about reading the button presses and what to do when a button is pressed.
+// first, just read the botton press, and put that value into the variable x
+  
+  int x;
+  x = analogRead (0);
+  lcd.setCursor(0,0);
+
+
+ //check if the right button was pushed   if so, do this
+ if (x < 60) {
+   b=10;
+   i=0;
+   numbers =0;
+   scanning=1;
+   lcd.print ("                ");
+   lcd.setCursor(0,1);
+   lcd.print ("                ");
+  
+    // Turn off the display:
+    lcd.noDisplay();
+    delay(500);
+  // Turn on the display:
+    lcd.display();
+    lcd.setCursor(0,0);
+    lcd.print ("    MULTISCAN   ");
+    delay(600); 
+    lcd.setCursor(0,0);
+    lcd.print ("                ");
+    delay(250);   
+    lcd.setCursor(0,0);
+    lcd.print ("CALIBRATING     ");
+    delay(400);
+    lcd.setCursor(0,1);
+    lcd.print ("<-------------->");
+    delay(150); 
+    for (int f = 1; f<=14; f++){
+      lcd.setCursor(f,1);
+      lcd.print ("=");
+      delay(200);
+    }
+
+
+    
+    //set the print speed of the multiscanner mode here
+    mySpeed =7;  
+ }
+
+
+
+
+//check if the top button was pushed   if so, do this
+ else if (x < 400) {
+      b=20;
+      i=0;
+      numbers =0;
+      scanning=0;
+      lcd.print ("                ");
+      lcd.setCursor(0,1);
+      lcd.print ("                ");
+ 
+      // Turn off the display:
+      lcd.noDisplay();
+      delay(500);
+      // Turn on the display:
+      lcd.display();
+ 
+      lcd.setCursor(0,0);
+      lcd.print ("    SYSTEMS     ");
+      lcd.setCursor(0,1);
+      lcd.print ("*RUN DIAGNOSTIC*");
+      delay(400);
+      lcd.setCursor(0,1);
+      lcd.print ("+RUN DIAGNOSTIC+");
+      delay(400);
+      lcd.setCursor(0,1);
+      lcd.print ("|RUN DIAGNOSTIC|");
+      delay(400);
+      lcd.setCursor(0,1);
+      lcd.print ("-RUN DIAGNOSTIC-");
+      delay(400);
+      lcd.setCursor(0,1);
+      lcd.print (" RUN DIAGNOSTIC ");
+      delay(400);
+//here I set the speed of the bottom text for the dignostic messages.  Don't like it?  Change it!
+      mySpeed =14; 
+ }
+
+
+
+
+
+//check if the bottom button was pushed.  If so, do this
+
+ else if (x < 600){
+    scanning=0;
+    b=0;
+    i=0;
+    numbers =0;
+    lcd.print ("                ");
+    lcd.setCursor(0,1);
+    lcd.print ("                ");
+ 
+    // Turn off the display:
+    lcd.noDisplay();
+    delay(500);
+    // Turn on the display:
+    lcd.display();
+ 
+    lcd.setCursor(0,0);
+    lcd.print ("  GHOSTBUSTERS  ");
+    delay(700);
+    lcd.setCursor(0,1);
+    lcd.print ("      WHO       ");
+    delay(350);
+    lcd.setCursor(0,1);
+    lcd.print ("      YOU       ");
+    delay(350);
+    lcd.setCursor(0,1);
+    lcd.print ("     GONNA      ");
+    delay(350);
+    lcd.setCursor(0,1);
+    lcd.print ("     CALL?      ");
+    delay(350);
+ // here I set the speed of the bottom text for the advertising messages.  Don't like it?  Change it! 
+    mySpeed =30;   
+ }
+
+
+
+
+
+ //check if the left button was pushed.  If so, do this
+ 
+ else if (x < 800){
+    scanning=0;
+    b=30;
+    i=0;
+    numbers =0;
+    lcd.print ("                ");
+    lcd.setCursor(0,1);
+    lcd.print ("                ");
+ 
+    // Turn off the display:
+    lcd.noDisplay();
+    delay(500);
+    // Turn on the display:
+    lcd.display();
+    
+    for (int j = 1; j<=13; j++){
+      lcd.setCursor(17-j,0);
+      lcd.print ("DETECTING       ");
+      delay(300);
+    }
+    delay(600);
+    lcd.print ("                ");
+    lcd.setCursor(0,0);
+    lcd.print ("ENTITY     CLASS");
+    lcd.setCursor(0,1);
+    lcd.print ("----DETECTING---");
+
+ 
+ // here I set the speed of the bottom text for the advertising messages.  Don't like it?  Change it!
+ // WARNING, don't set mySpeed much higher than this.  Because of a rounding error, higher settings may never print  
+      mySpeed =120;
+  }
+ 
+
+
+
+//check if the "select" button was pushed.  If so, do this
+
+ else if (x < 1000){
+   scanning=1;
+   b=0;
+   numbers =1;
+   lcd.setCursor(0,0);
+   lcd.print ("                ");
+   lcd.setCursor(0,1);
+   lcd.print ("                ");
+ 
+   // Turn off the display:
+   lcd.noDisplay();
+   delay(500);
+   // Turn on the display:
+   lcd.display();
+ 
+   lcd.setCursor(0,1);
+   lcd.print ("PKE LEVEL:");
+   mySpeed =2;
+ }
+
+
+
+//OKAY THAT'S DONE  WE CHECKED ALL 5 BUTTONS!!!
+
+
+//this next part prints the animated scanning top line graphic, if the mode calls for it
+
+ //check and see if it's time to print a TOP line
+ if (millis() % (104 *1) ==0){
+
+// if so, check and see if we're printing the scanning graphic and print it
+
+    if (scanning==1){
+      
+    
+      lcd.setCursor(0,0);
+      lcd.print((myString2)[j]);
+      j++;
+      if(j>=8){
+        j=0;
+      }
+    }
+
+
+ }
+
+
+
+
+
+//The last part of the program is just printing the bottom line text in each mode
+
+
+
+ //check and see if it's time to print a bottom line
+ if (millis() % (200 *mySpeed) ==0){
+
+// if so, check and see if we're printing pke numbers, and if so, print them!
+
+    if(numbers==1){
+      lcd.setCursor(15,1);
+      lcd.print("%");
+      lcd.setCursor(10,1);
+      
+      //this part generates the numbers for the pke meter
+      float pke= (millis()*.00007);
+      pke = sin(pke)*100;
+      pke = map(pke, -99, 100, 6802, 9834);
+      pke = pke*.01;
+  
+      float pkeMult= (millis()*.00003);
+      pkeMult = sin(pkeMult+60)*100;
+      pkeMult = map(pkeMult, -99, 100, 20, 100);
+      pkeMult = pkeMult*.01;
+      
+      lcd.print(pke*pkeMult);
+    }
+
+  //if we're not printing numbers, get the appropriate message from the string array at the top, and print it
+    else if (numbers==0){
+      lcd.setCursor(0,1);
+      lcd.print((myString1)[i+b]);
+      i++;
+      if(i>=10){
+        i=0;
+      }
+    }
+  }
+}
