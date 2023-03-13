@@ -9,5 +9,7 @@ DFROBOT Gravity: 1602 LCD Keypad Shield For Arduino https://www.amazon.com/dp/B0
 
 Tape Measure holder https://www.amazon.com/dp/B0006GPZ7Q/re ... ZSEGAT7RG8
 
+[as a note I have not had luck using the D1 robot board as a replacement]
+
 
 all credit Bruce Wright, free as stated and forever
